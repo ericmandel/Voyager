@@ -263,7 +263,7 @@ JS9.globalOpts.userMenuBar = [
 		"args": ["box"]
 	    },
 	    {
-		"name": "cirle",
+		"name": "circle",
 		"cmd": "AddRegions",
 		"image": "images/voyager/regions_circle.svg",
 		"args": ["circle"]
