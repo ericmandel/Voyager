@@ -1,0 +1,20 @@
+/* override the default width in js9.css */
+img.JS9MenubarUserImageTitle[name="colormap"]{
+    width: 40px;
+}
+img.JS9MenubarUserImageOption[name^="colormap"]{
+    width: 40px;
+}
+img.JS9MenubarUserImageTitle[name="regions"]{
+    width: 20px;
+}
+img.JS9MenubarUserImageOption[name^="regions"]{
+    width: 20px;
+}
+
+img.JS9MenubarUserImageTitle[name="zoom"]{
+    width: 20px;
+}
+img.JS9MenubarUserImageOption[name^="zoom"]{
+    width: 20px;
+}

@@ -1,0 +1,173 @@
+#!/bin/bash
+# set -x
+
+CDIR=`pwd`
+SRCDIR=$CDIR/src
+ANALYSIS_PACKAGES="funtools regions"
+NPM_PACKAGES="@electron-forge/maker-pkg"
+OSID=`node -e 'console.log(\`${os.platform()}-${os.arch()}\`)'`
+if [ x"$OSID" = xdarwin-x64 ]; then
+  SSID=`/System/Library/PrivateFrameworks/Apple80211.framework/Resources/airport -I | egrep ' SSID:' | awk '{print $2}'`
+fi
+
+# steps we can take, in order
+INIT=false
+ANALYSIS=false
+JS9=false
+VGER=false
+DIST=false
+
+error() {
+    printf "ERROR: $1\n"
+    exit 1
+}
+
+# if no args, remake with js9
+if [ x"$1" = x ]; then
+  echo "usage $0 [build opt]"
+  exit 1
+fi
+
+# process args
+while [ x"$1" != x ]; do
+    case $1 in
+	--all)
+	    INIT=true
+	    INITAPP=true
+	    ANALYSIS=true
+	    JS9=true
+	    VGER=true
+	    DIST=true
+	    shift
+	    continue;;
+
+	--app)
+	    JS9=true
+	    VGER=true
+	    DIST=true
+	    shift
+	    continue;;
+
+	--init)
+	    INIT=true
+	    shift
+	    continue;;
+
+	--initapp)
+	    INITAPP=true
+	    shift
+	    continue;;
+
+	--analysis)
+	    ANALYSIS=true
+	    shift
+	    continue;;
+
+	--js9)
+	    JS9=true
+	    shift
+	    continue;;
+
+	--vger)
+	    VGER=true
+	    shift
+	    continue;;
+
+	--dist)
+	    DIST=true
+	    shift
+	    continue;;
+
+        *) break;;
+    esac
+done
+
+printf "\nBuilding Voyager App: $OSID $SSID `date` ...\n"
+
+# initialize src directory?
+if [ x"$INIT" = xtrue ]; then
+  printf "\ncreating new $SRCDIR directory\n"
+  rm -rf $SRCDIR && mkdir -p $SRCDIR || error "can't init $SRCDIR"
+fi
+
+# initialize app using electron-forge
+if [ x"$INITAPP" = xtrue ]; then
+  printf "\nusing electron-forge to set up app ...\n"
+  cd $SRCDIR || error "can't enter $src directory"
+  if [ ! -r package.json ]; then
+    printf "copying js9 package.json file into $SRCDIR\n"
+    cp -p $CDIR/../js9/package.json $SRCDIR/. || error "can't copy package.json"
+  fi
+  printf "copying voyager Apple icons into $SRCDIR\n"
+  cp -p $CDIR/vger/voyager.icns $SRCDIR/. || error "can't copy voyager Apple icns"
+  printf "electron-forge import\n"
+  npx @electron-forge/cli import || error "can't import using electron-forge"
+  printf "saving original package.json\n"
+  mv package.json{,-orig} || error "can't save package.json"
+  if [ x"$SSID" = xpippint ]; then
+    printf "copying no signing package.json and aux files into $SRCDIR\n"
+    cp -p $CDIR/build/no-signing-package.json $SRCDIR/package.json || error "can't copy our package.json"
+  else
+    printf "copying our package.json and aux files into $SRCDIR\n"
+    cp -p $CDIR/build/package.json $SRCDIR/. || error "can't copy our package.json"
+  fi
+  cp -p $CDIR/build/entitlements.plist $SRCDIR/. || error "can't copy our entitlements file"
+  printf "installing extra electron-forge packages ...\n"
+  for pkg in `echo $NPM_PACKAGES`; do
+    printf "** install $pkg\n"
+    npm install $pkg || error "can't install npm package: $pkg"
+  done
+fi
+if [ x"$JS9" = xtrue ]; then
+  cd $SRCDIR || error "can't enter $SRCDIR directory"
+  VER=`sed -n 's#.*"version": *"\([^"]*\)".*$#\1#p' < $CDIR/../js9/package.json`
+  printf "js9 version: $VER\n"
+  sed 's#\(.*"version": *"\)\([^"]*\)\(".*$\)#\1'$VER'\3#' < package.json > npackage.json && mv npackage.json package.json  || error "can't set js9 version"
+fi
+
+# install packages, including js9
+if [ x"$JS9" = xtrue ]; then
+  PACKAGES="js9 "
+fi
+if [ x"$ANALYSIS" = xtrue ]; then
+  PACKAGES="$PACKAGES $ANALYSIS_PACKAGES"
+fi
+if [ x"$PACKAGES" != x ]; then
+  printf "installing analysis packages ...\n"
+fi
+for pkg in `echo $PACKAGES`; do
+  printf "** install $pkg ...\n"
+  case $pkg in
+    funtools) XTRA="MAN_SHARE_DIR=$SRCDIR/share/funtools" ;;
+    *) XTRA="" ;;
+  esac
+  cd $CDIR/../$pkg || error "can't enter $pkg directory"
+  $CDIR/build/xmake || error "can't make package: $pkg"
+  make prefix="$SRCDIR/$OSID" WEBDIR="$SRCDIR" $XTRA install  || error "can't install package: $pkg"
+  # funtools removes write permission from libs, which breaks code-signing
+  if [ x"$pkg" = xfuntools ]; then
+    chmod 644 $SRCDIR/$OSID/lib/libfuntools.a
+  fi
+  make clean
+done
+if [ x"$JS9" = xtrue ]; then
+  cd $SRCDIR || error "can't cd to $SRCDIR"
+  printf 'change workDir to $tmp\n'
+  sed 's#\("workDir":.*\)\("./tmp"\)#\1"$tmp"#g' < js9Prefs.json >  njs9Prefs.json && mv njs9Prefs.json js9Prefs.json
+fi
+
+# add voyager files
+if [ x"$VGER" = xtrue ]; then
+  printf "\nadding voyager files ...\n"
+  cd $CDIR/vger || error "can't enter $CDIR/vger directory"
+  tar cf - . | (cd $SRCDIR && tar xf -) || error "can't add voyager files"
+fi
+
+
+# create distribution(s)
+if [ x"$DIST" = xtrue ]; then
+  printf "\nusing electron-forge to generate app ...\n"
+  cd $SRCDIR || error "can't enter $SRCDIR directory"
+  # npm run package
+  npm run make
+fi
