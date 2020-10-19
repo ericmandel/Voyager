@@ -1,11 +1,15 @@
 #!/bin/bash
 # set -x
 
+NAME="Voyager"
 CDIR=`pwd`
 SRCDIR=$CDIR/src
+DISTDIR=$CDIR/dist
 ANALYSIS_PACKAGES="funtools regions"
 NPM_PACKAGES="@electron-forge/maker-pkg"
 OSID=`node -e 'console.log(\`${os.platform()}-${os.arch()}\`)'`
+OSP=`echo $OSID | awk -F- '{print $1}'`
+OSA=`echo $OSID | awk -F- '{print $2}'`
 if [ x"$OSID" = xdarwin-x64 ]; then
   SSID=`/System/Library/PrivateFrameworks/Apple80211.framework/Resources/airport -I | egrep ' SSID:' | awk '{print $2}'`
 fi
@@ -82,12 +86,13 @@ while [ x"$1" != x ]; do
     esac
 done
 
-printf "\nBuilding Voyager App: $OSID $SSID `date` ...\n"
+printf "\nBuilding $NAME: $OSID $SSID `date` ...\n"
 
 # initialize src directory?
 if [ x"$INIT" = xtrue ]; then
   printf "\ncreating new $SRCDIR directory\n"
   rm -rf $SRCDIR && mkdir -p $SRCDIR || error "can't init $SRCDIR"
+  mkdir -p $DISTDIR || error "can't init $DISTDIR"
 fi
 
 # initialize app using electron-forge
@@ -118,10 +123,10 @@ if [ x"$INITAPP" = xtrue ]; then
     npm install $pkg || error "can't install npm package: $pkg"
   done
 fi
+VER=`sed -n 's#.*"version": *"\([^"]*\)".*$#\1#p' < $CDIR/../js9/package.json`
+printf "JS9 version: $VER\n\n"
 if [ x"$JS9" = xtrue ]; then
   cd $SRCDIR || error "can't enter $SRCDIR directory"
-  VER=`sed -n 's#.*"version": *"\([^"]*\)".*$#\1#p' < $CDIR/../js9/package.json`
-  printf "js9 version: $VER\n"
   sed 's#\(.*"version": *"\)\([^"]*\)\(".*$\)#\1'$VER'\3#' < package.json > npackage.json && mv npackage.json package.json  || error "can't set js9 version"
 fi
 
@@ -170,4 +175,7 @@ if [ x"$DIST" = xtrue ]; then
   cd $SRCDIR || error "can't enter $SRCDIR directory"
   # npm run package
   npm run make
+  # copy zip file
+  cd $DISTDIR || error "can't enter $DISTDIR directory"
+  cp -p $SRCDIR/out/make/zip/$OSP/$OSA/${NAME}-${OSID}-${VER}.zip .
 fi
