@@ -4,5 +4,8 @@
 	"icon":    "voyager.icns",
 	"width":   0,
 	"height":  0
+    },
+    "exportOpts": {
+	"script": "vger"
     }
 }
