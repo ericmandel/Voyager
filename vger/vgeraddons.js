@@ -63,6 +63,9 @@ JS9.mkPublic("ResizeDesktop", function(){
     }
 });
 
+// credit where credit is due
+JS9.ABOUT = `Voyager ${JS9.VERSION}: image display powered by JS9\nA. Vikhlinin, G. Tremblay, E. Mandel\ncontact: emandel@cfa.harvard.edu\n${JS9.COPYRIGHT}`;
+
 // JS9 is ready, resize the JS9 display if necessary
 $(document).on("JS9:ready", function(){
     JS9.ResizeDesktop();
