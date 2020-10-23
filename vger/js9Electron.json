@@ -6,6 +6,6 @@
 	"height":  0
     },
     "exportOpts": {
-	"script": "vger"
+	"outputScript": "vger"
     }
 }
