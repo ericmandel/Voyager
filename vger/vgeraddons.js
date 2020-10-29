@@ -57,8 +57,8 @@ JS9.mkPublic("ResizeDesktop", function(){
 	} else {
 	    height = obj.height;
 	}
-	width = Math.max(Math.min(width, 1024), 512);
-	height = Math.max(Math.min(height, 1024), 512);
+	width = Math.max(Math.min(width, 2048), 256);
+	height = Math.max(Math.min(height, 2048), 256);
 	JS9.ResizeDisplay(width, height);
     }
 });
